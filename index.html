@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Generador de invitaciones</title>
+<style>
+:root{--bg:#f3f5f1;--fg:#1d261f;--muted:#5d6b60;--line:#cdd6cf;--panel:#fff;--accent:#2f6b3f;--accent-fg:#fff;--warn:#8a5a00;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141a16;--fg:#e6ece7;--muted:#9fb0a3;--line:#33403a;--panel:#1c2420;--accent:#6fbf86;--accent-fg:#0d1a11;--warn:#e0b25a}}
+:root[data-theme="dark"]{--bg:#141a16;--fg:#e6ece7;--muted:#9fb0a3;--line:#33403a;--panel:#1c2420;--accent:#6fbf86;--accent-fg:#0d1a11;--warn:#e0b25a}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.app{display:grid;grid-template-columns:minmax(300px,400px) 1fr;gap:24px;padding:20px;max-width:1400px;margin:0 auto}
+@media (max-width:900px){.app{grid-template-columns:1fr}}
+.ui{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;align-self:start}
+h1{font-size:1.25rem;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 16px;font-size:.92rem}
+label{display:block;font-weight:600;font-size:.88rem;margin:12px 0 4px}
+textarea,input,select{width:100%;font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px}
+textarea{resize:vertical}
+#names{min-height:180px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+button{font:inherit;font-weight:600;border-radius:6px;padding:10px 14px;border:1px solid var(--accent);cursor:pointer}
+.primary{background:var(--accent);color:var(--accent-fg)}
+.ghost{background:transparent;color:var(--accent)}
+button:focus-visible,textarea:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+#status{margin-top:12px;font-size:.9rem;color:var(--muted)}
+#status b{color:var(--fg)}
+#status .warn{color:var(--warn)}
+details{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+summary{cursor:pointer;font-weight:600}
+.pv{overflow-x:auto;min-width:0}
+.empty{color:var(--muted);padding:40px 10px;text-align:center;border:1px dashed var(--line);border-radius:10px}
+/* Hojas (papel: siempre blanco) */
+.sheet{background:#fff;color:#000;width:8.5in;height:11in;margin:0 auto 20px;box-shadow:0 1px 8px rgba(0,0,0,.25);font-family:"Times New Roman",Times,Georgia,serif;overflow:hidden;position:relative}
+.inv{padding:.7in .9in;height:11in;font-size:12pt;line-height:1.5}
+.two .inv{height:5.5in;padding:.3in .7in;font-size:9pt;line-height:1.25}
+.two .inv p{margin-bottom:.5em}
+.two .hd{margin-bottom:.7em}
+.two .inv:first-child{border-bottom:1px dashed #888}
+.hd{text-align:center;font-size:.85em;line-height:1.3;margin-bottom:1.2em}
+.hd b{display:block;font-size:1.2em;letter-spacing:.02em}
+.inv p{margin:0 0 .8em}
+.fecha{margin-bottom:1em}
+.dl{display:grid;grid-template-columns:4.5em 1fr;margin:0 0 .8em;font-weight:600}
+.dl span:nth-child(even){font-weight:400}
+.nota{min-height:1.6em}
+.inv .firma{margin-top:2.2em}
+.two .inv .firma{margin-top:1.6em}
+.sig{display:block;height:.55in;max-width:2.6in;object-fit:contain;margin:0 0 -.4em}
+.two .sig{height:.4in}
+.inv .firma.has,.two .inv .firma.has{margin-top:.2em}
+@media print{
+  @page{size:letter;margin:0}
+  html,body{background:#fff}
+  .ui,.empty{display:none!important}
+  .app{display:block;padding:0;max-width:none}
+  .pv{overflow:visible}
+  .sheet{margin:0;box-shadow:none;break-after:page;page-break-after:always}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <section class="ui">
+    <h1>Generador de invitaciones</h1>
+    <p class="sub">Pegue la lista de padres de familia, una persona por línea. Se genera una invitación por nombre y se quitan los repetidos.</p>
+
+    <label for="names">Lista de nombres</label>
+    <textarea id="names" placeholder="María Pérez&#10;Juan Gómez&#10;maria perez"></textarea>
+
+    <label for="per">Invitaciones por hoja</label>
+    <select id="per"><option value="1">1 por hoja</option><option value="2">2 por hoja (ahorra papel)</option></select>
+
+    <label for="sigfile">Firma digital (imagen PNG o JPG)</label>
+    <input id="sigfile" type="file" accept="image/*">
+    <div class="row"><button class="ghost" id="sigdel" type="button">Quitar firma</button></div>
+
+    <div class="row">
+      <button class="primary" id="print" type="button">Imprimir</button>
+      <button class="ghost" id="clear" type="button">Borrar lista</button>
+    </div>
+    <div id="status" role="status" aria-live="polite"></div>
+
+    <details>
+      <summary>Editar el texto de la carta</summary>
+      <div id="fields"></div>
+    </details>
+  </section>
+
+  <section class="pv" id="pv"></section>
+</div>
+
+<script>
+var FIELDS=[
+ ["fecha","Lugar y fecha","La Palomera Caloto, 30 de junio del 2026",0],
+ ["asunto","Asunto","Asunto: invitación al trabajo en el tul.",0],
+ ["cuerpo","Texto principal","Los dinamizadores de La Institución Educativa Técnica La Palomera hacemos la cordial invitación a cada uno de ustedes como padres de familia al trabajo que se realizara en la institución (remoción de tierra alrededor del kiosco y relleno en construcción nueva). Terminado el trabajo reunión para tratar temas sobre la salida pedagogica y clausuras.",1],
+ ["dia","Día","jueves 05 de noviembre 2026",0],
+ ["hora","Hora","8:00 AM",0],
+ ["lugar","Lugar","Institución Educativa Técnica La Palomera",0],
+ ["nota","Nota (opcional)","",1],
+ ["firmante","Nombre de quien solicita (opcional)","",0],
+ ["cargo","Cargo (opcional)","",0]
+];
+var state={names:"",per:"2"};
+FIELDS.forEach(function(f){state[f[0]]=f[2]});
+state.firma="";
+try{var s=JSON.parse(localStorage.getItem("inv-state-v2")||"null");if(s){for(var k in s){state[k]=s[k]}}}catch(e){}
+
+function esc(t){return String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+function save(){try{localStorage.setItem("inv-state-v2",JSON.stringify(state))}catch(e){}}
+
+function parse(raw){
+  var seen={},out=[],dups=[];
+  raw.split(/\r?\n/).forEach(function(line){
+    var n=line.replace(/^\s*(\d+\s*[.)\-–]|[-•*])\s*/,"").replace(/\s+/g," ").trim();
+    if(!n)return;
+    var key=n.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+    if(seen[key]){dups.push(n)}else{seen[key]=1;out.push(n)}
+  });
+  return {names:out,dups:dups};
+}
+
+function inv(name){
+  return '<div class="inv">'+
+  '<div class="hd"><b>INSTITUCIÓN EDUCATIVA TÉCNICA LA PALOMERA</b>RESOLUCIÓN No. 08002-10-2015<br>CÓDIGO DANE: 219142000352<br>NIT: 900955019-2<br>E-MAIL: carmenguto@ymail.com - instpalomera@gmail.com</div>'+
+  '<p class="fecha">'+esc(state.fecha)+'</p>'+
+  '<p>Señor(a): <b>'+esc(name)+'</b></p>'+
+  '<p>Cordial saludo.</p>'+
+  '<p>'+esc(state.asunto)+'</p>'+
+  '<p>'+esc(state.cuerpo)+'</p>'+
+  '<div class="dl"><span>Día:</span><span>'+esc(state.dia)+'</span><span>Hora:</span><span>'+esc(state.hora)+'</span><span>Lugar:</span><span>'+esc(state.lugar)+'</span></div>'+
+  '<p class="nota"><b>Nota:</b> '+esc(state.nota)+'</p>'+
+  '<p>Agradecemos su atención y participación.</p>'+
+  '<p>Cordialmente:</p>'+
+  '<p class="firma'+(state.firma?' has':'')+'">'+(state.firma?'<img class="sig" alt="Firma" src="'+state.firma+'">':'')+'________________________</p>'+
+  '<p class="nom">'+(state.firmante?'<b>'+esc(state.firmante)+'</b>':'Nombre: ________________________')+(state.cargo?'<br>'+esc(state.cargo):'')+'</p>'+
+  '</div>';
+}
+
+function render(){
+  var r=parse(state.names),per=+state.per,html="";
+  for(var i=0;i<r.names.length;i+=per){
+    var chunk=r.names.slice(i,i+per);
+    html+='<div class="sheet'+(per===2?' two':'')+'">'+chunk.map(inv).join("")+'</div>';
+  }
+  document.getElementById("pv").innerHTML=r.names.length?html:'<div class="empty">Aquí aparecerán las invitaciones cuando pegue la lista de nombres.</div>';
+  var st=document.getElementById("status");
+  if(!r.names.length){st.textContent="";return}
+  var hojas=Math.ceil(r.names.length/per);
+  var msg='<b>'+r.names.length+'</b> '+(r.names.length===1?'invitación':'invitaciones')+' en '+hojas+' '+(hojas===1?'hoja':'hojas')+'.';
+  if(r.dups.length)msg+=' <span class="warn">Se quitaron '+r.dups.length+' repetidos: '+esc(r.dups.join(", "))+'.</span>';
+  st.innerHTML=msg;
+}
+
+function build(){
+  var box=document.getElementById("fields");
+  FIELDS.forEach(function(f){
+    var l=document.createElement("label");l.textContent=f[1];l.htmlFor="f-"+f[0];
+    var el=document.createElement(f[3]?"textarea":"input");
+    el.id="f-"+f[0];el.value=state[f[0]];if(f[3])el.rows=f[0]==="cuerpo"?6:2;
+    el.addEventListener("input",function(){state[f[0]]=el.value;save();render()});
+    box.appendChild(l);box.appendChild(el);
+  });
+  var n=document.getElementById("names");n.value=state.names;
+  n.addEventListener("input",function(){state.names=n.value;save();render()});
+  var p=document.getElementById("per");p.value=state.per;
+  p.addEventListener("change",function(){state.per=p.value;save();render()});
+  document.getElementById("print").addEventListener("click",function(){window.print()});
+  var sf=document.getElementById("sigfile");
+  sf.addEventListener("change",function(){
+    var file=sf.files&&sf.files[0];if(!file)return;
+    var rd=new FileReader();
+    rd.onload=function(){
+      var im=new Image();
+      im.onload=function(){
+        var w=Math.min(500,im.width),h=Math.round(im.height*w/im.width);
+        var c=document.createElement("canvas");c.width=w;c.height=h;
+        c.getContext("2d").drawImage(im,0,0,w,h);
+        state.firma=c.toDataURL("image/png");save();render();
+      };
+      im.src=rd.result;
+    };
+    rd.readAsDataURL(file);
+  });
+  document.getElementById("sigdel").addEventListener("click",function(){state.firma="";sf.value="";save();render()});
+  document.getElementById("clear").addEventListener("click",function(){state.names="";n.value="";save();render()});
+}
+build();render();
+</script>
+</body>
+</html>
